@@ -34,9 +34,9 @@ func TestEndToEnd(t *testing.T) {
     for _, tool := range getTools() {
         switch tool.Name {
         case "todo_read":
-            mcp.AddTool[any, any](server, &tool, todo.handleRead)
+            mcp.AddTool(server, &tool, todo.handleRead)
         case "todo_write":
-            mcp.AddTool[struct{ Content string `json:"content"` }, any](server, &tool, todo.handleWrite)
+            mcp.AddTool(server, &tool, todo.handleWrite)
         }
     }
     serverSession, err := server.Connect(ctx, serverTransport, nil)

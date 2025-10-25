@@ -13,6 +13,36 @@ type TodoServer struct {
     fallback string
 }
 
+// Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
+func (s *TodoServer) Initialize(ctx context.Context, req *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
+    // Provide basic server info and capabilities.
+    return &mcp.InitializeResult{
+        ProtocolVersion: "2025-06-18",
+        ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
+        Instructions:    "Use the todo_read and todo_write tools to manage your TODO list.",
+        Capabilities: &mcp.ServerCapabilities{
+            Tools: &mcp.ToolCapabilities{ListChanged: true},
+        },
+    }, nil
+}
+
+// ListTools returns the list of tools supported by the server.
+func (s *TodoServer) ListTools(ctx context.Context, req *mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
+    tools := getTools()
+    // Convert []mcp.Tool to []*mcp.Tool
+    ptrs := make([]*mcp.Tool, len(tools))
+    for i := range tools {
+        ptrs[i] = &tools[i]
+    }
+    return &mcp.ListToolsResult{Tools: ptrs}, nil
+}
+
+// CallTool dispatches tool calls to the appropriate handler. This is a generic fallback.
+func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+    // Since we register handlers directly via AddTool, this method can return a not‑implemented error.
+    return nil, fmt.Errorf("CallTool not implemented for %s", req.Params.Name)
+}
+
 // handleRead reads the current todo content.
 func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
     s.mu.RLock()
