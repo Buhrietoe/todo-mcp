@@ -1,26 +1,52 @@
-# TODO
+# TODO - Go MCP Todo Server Implementation
 
-## Plan to align Go MCP server with Rust example and go-sdk
+This document outlines the steps to implement a Go-based MCP server for a todo list, mirroring the functionality of the Rust example.
 
-1. **Review Rust implementation**
-   - Use agent tool to summarize functionality (already done).
-2. **Define tool metadata**
-   3. **Expose tools via MCP SDK**
-   - Ensure tools are registered with `mcp.NewServer` (already done in `main.go`).
-4. **Implement read/write semantics**
-   - `todo_read` returns current content.
-   - `todo_write` overwrites content and returns update message.
-5. **Add optional fallback storage**
-   - Use in‑memory fallback (already present).
-6. **Write tests**
-   - Test `handleRead` and `handleWrite` directly.
-   - Test end‑to‑end client‑server interaction.
-7. **Update documentation**
-   - Add description in `README.md`.
-   - Document tool usage and limits.
-8. **Run lint / vet**
-   - Ensure no unused imports.
-9. **Commit changes**
-   - Follow conventional commit message.
+## 1. Project Setup
+- [ ] Initialize the Go module.
+- [ ] Add the `github.com/modelcontextprotocol/go-sdk` dependency.
 
-After completing these steps, the Go server will mirror the Rust example's behavior and be ready for production use.
+## 2. MCP Server Scaffolding
+- [ ] Create a `main.go` file.
+- [ ] Define a `TodoServer` struct.
+- [ ] Implement the `mcp.Server` interface for `TodoServer`.
+  - [ ] `Initialize(context.Context, *mcp.InitializeRequest) (*mcp.InitializeResponse, error)`
+  - [ ] `ListTools(context.Context, *mcp.ListToolsRequest) (*mcp.ListToolsResponse, error)`
+  - [ ] `CallTool(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResponse, error)`
+  - [ ] Implement stubs for other `mcp.Server` methods (e.g., `ListResources`, `ReadResource`, etc.) to return "not implemented" errors.
+
+## 3. State Management
+- [ ] Implement a simple in-memory state management solution for the todo list content. A `sync.RWMutex` protecting a `map[string]string` to store todo lists by session ID would be a good starting point.
+- [ ] Add a fallback mechanism for when no session ID is present, similar to the Rust example.
+
+## 4. Tool Implementation
+- [ ] Implement the `todo_read` tool:
+  - [ ] In the `CallTool` method, check for the "todo_read" tool name.
+  - [ ] Read the todo list content from the state management system.
+  - [ ] Return the content in a `mcp.CallToolResponse`.
+- [ ] Implement the `todo_write` tool:
+  - [ ] In the `CallTool` method, check for the "todo_write" tool name.
+  - [ ] Extract the "content" argument from the `mcp.CallToolRequest`.
+  - [ ] Update the todo list content in the state management system.
+  - [ ] Return a success message in a `mcp.CallToolResponse`.
+
+## 5. Server Initialization
+- [ ] In the `Initialize` method, provide the server's metadata:
+  - [ ] Protocol version.
+  - [ ] Server capabilities (tools).
+  - [ ] Server information (name, version, etc.).
+  - [ ] Instructions for using the todo tools.
+
+## 6. Main Function
+- [ ] In `main.go`, create an instance of the `TodoServer`.
+- [ ] Start the MCP server using the `mcp.NewServer` and `ListenAndServe` functions from the SDK.
+
+## 7. Testing
+- [ ] Create a `todo_server_test.go` file.
+- [ ] Write unit tests for the `todo_read` and `todo_write` tools.
+- [ ] Test the server's initialization and error handling.
+
+## 8. Refinement
+- [ ] Add logging to the server.
+- [ ] Improve error handling and provide more informative error messages.
+- [ ] Add comments to the code where necessary.
