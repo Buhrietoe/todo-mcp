@@ -2,21 +2,25 @@ package main
 
 import (
     "context"
+    "io"
+    "log"
     "testing"
+
     "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestHandleReadWrite(t *testing.T) {
-    s := &TodoServer{}
+    s := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
     ctx := context.Background()
+    req := &mcp.CallToolRequest{}
     // Write
     writeArgs := struct{ Content string `json:"content"` }{Content: "- [ ] Task 1"}
-    _, _, err := s.handleWrite(ctx, nil, writeArgs)
+    _, _, err := s.handleWrite(ctx, req, writeArgs)
     if err != nil {
         t.Fatalf("handleWrite error: %v", err)
     }
     // Read
-    res, _, err := s.handleRead(ctx, nil, nil)
+    res, _, err := s.handleRead(ctx, req, nil)
     if err != nil {
         t.Fatalf("handleRead error: %v", err)
     }
@@ -29,8 +33,8 @@ func TestHandleReadWrite(t *testing.T) {
 func TestEndToEnd(t *testing.T) {
     ctx := context.Background()
     clientTransport, serverTransport := mcp.NewInMemoryTransports()
+    todo := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
     server := mcp.NewServer(&mcp.Implementation{Name: "todo", Version: "1.0.0"}, nil)
-    todo := &TodoServer{}
     for _, tool := range getTools() {
         switch tool.Name {
         case "todo_read":
