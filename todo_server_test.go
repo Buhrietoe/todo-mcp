@@ -15,12 +15,12 @@ func TestHandleReadWrite(t *testing.T) {
     req := &mcp.CallToolRequest{}
     // Write
     writeArgs := struct{ Content string `json:"content"` }{Content: "- [ ] Task 1"}
-    _, _, err := s.handleWrite(ctx, req, writeArgs)
+    _, err := s.handleWrite(ctx, req, writeArgs)
     if err != nil {
         t.Fatalf("handleWrite error: %v", err)
     }
     // Read
-    res, _, err := s.handleRead(ctx, req, nil)
+    res, err := s.handleRead(ctx, req)
     if err != nil {
         t.Fatalf("handleRead error: %v", err)
     }
@@ -34,15 +34,8 @@ func TestEndToEnd(t *testing.T) {
     ctx := context.Background()
     clientTransport, serverTransport := mcp.NewInMemoryTransports()
     todo := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
-    server := mcp.NewServer(&mcp.Implementation{Name: "todo", Version: "1.0.0"}, nil)
-    for _, tool := range getTools() {
-        switch tool.Name {
-        case "todo_read":
-            mcp.AddTool(server, &tool, todo.handleRead)
-        case "todo_write":
-            mcp.AddTool(server, &tool, todo.handleWrite)
-        }
-    }
+    server := mcp.NewServer(todo, &mcp.ServerOptions{})
+    // No need to add tools manually; server uses CallTool implementation
     serverSession, err := server.Connect(ctx, serverTransport, nil)
     if err != nil {
         t.Fatalf("server connect: %v", err)

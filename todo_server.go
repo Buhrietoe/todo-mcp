@@ -11,6 +11,9 @@ import (
     "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// Max content size limit for todo_write (1 MB)
+const maxTodoContentSize = 1 << 20
+
 type TodoServer struct {
     mu       sync.RWMutex
     todos    map[string]string
@@ -69,18 +72,15 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
     switch req.Params.Name {
     case "todo_read":
         s.logger.Printf("todo_read called")
-        res, _, err := s.handleRead(ctx, req, nil)
+        res, err := s.handleRead(ctx, req)
         return res, err
     case "todo_write":
         var args struct{ Content string `json:"content"` }
-        // extract content argument from JSON
         if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
             return nil, fmt.Errorf("failed to parse arguments: %w", err)
         }
-        // call write handler
-        res, _, err := s.handleWrite(ctx, req, args)
+        res, err := s.handleWrite(ctx, req, args)
         return res, err
-
     default:
         return nil, fmt.Errorf("unknown tool %s", req.Params.Name)
     }
@@ -88,7 +88,7 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 
 
 // handleRead reads the current todo content.
-func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
     s.mu.RLock()
     defer s.mu.RUnlock()
     content := ""
@@ -97,12 +97,15 @@ func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest, _
     } else {
         content = s.fallback
     }
-    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil, nil
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
 // handleWrite writes the provided todo content.
-func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, args struct{ Content string `json:"content"` }) (*mcp.CallToolResult, any, error) {
+func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, args struct{ Content string `json:"content"` }) (*mcp.CallToolResult, error) {
     s.logger.Printf("todo_write called with %d chars", len(args.Content))
+    if len(args.Content) > maxTodoContentSize {
+        return nil, fmt.Errorf("content size exceeds limit of %d bytes", maxTodoContentSize)
+    }
     s.mu.Lock()
     defer s.mu.Unlock()
     if req.Session != nil && req.Session.ID() != "" {
@@ -114,7 +117,7 @@ func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, 
         s.fallback = args.Content
     }
     msg := fmt.Sprintf("Updated (%d chars)", len(args.Content))
-    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: msg}}}, nil, nil
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: msg}}}, nil
 }
 
 // getTools returns the tool definitions for the server.
