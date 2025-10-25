@@ -21,9 +21,6 @@ func main() {
     // Register tools.
     mcp.AddTool(server, &mcp.Tool{Name: "todo_read", Description: "Read the entire TODO list", Title: "Read TODO"}, ts.handleRead)
     mcp.AddTool(server, &mcp.Tool{Name: "todo_write", Description: "Write or overwrite the entire TODO list", Title: "Write TODO"}, ts.handleWrite)
-    // Register tools.
-    mcp.AddTool(server, &mcp.Tool{Name: "todo_read", Description: "Read the entire TODO list", Title: "Read TODO"}, ts.handleRead)
-    mcp.AddTool(server, &mcp.Tool{Name: "todo_write", Description: "Write or overwrite the entire TODO list", Title: "Write TODO"}, ts.handleWrite)
 
     // Run server over Stdio with logging.
     t := &mcp.LoggingTransport{Transport: &mcp.StdioTransport{}, Writer: os.Stderr}

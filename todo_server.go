@@ -2,7 +2,9 @@ package main
 
 import (
     "context"
+    "log"
     "fmt"
+
     "sync"
 
     "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,11 +39,35 @@ func (s *TodoServer) ListTools(ctx context.Context, req *mcp.ListToolsRequest) (
     return &mcp.ListToolsResult{Tools: ptrs}, nil
 }
 
-// CallTool dispatches tool calls to the appropriate handler. This is a generic fallback.
+// CallTool dispatches tool calls to the appropriate handler.
 func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-    // Since we register handlers directly via AddTool, this method can return a not‑implemented error.
-    return nil, fmt.Errorf("CallTool not implemented for %s", req.Params.Name)
+    switch req.Params.Name {
+    case "todo_read":
+        log.Printf("todo_read called")
+        res, _, err := s.handleRead(ctx, req, nil)
+        return res, err
+    case "todo_write":
+        var args struct{ Content string `json:"content"` }
+        // extract content argument from map
+        argsMap, ok := req.Params.Arguments.(map[string]any)
+        if !ok {
+            return nil, fmt.Errorf("arguments not a map")
+        }
+        v, ok := argsMap["content"]
+        if !ok {
+            return nil, fmt.Errorf("missing content argument")
+        }
+        sContent, ok := v.(string)
+        if !ok {
+            return nil, fmt.Errorf("content argument is not a string")
+        }
+        args.Content = sContent
+
+    default:
+        return nil, fmt.Errorf("unknown tool %s", req.Params.Name)
+    }
 }
+
 
 // handleRead reads the current todo content.
 func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
