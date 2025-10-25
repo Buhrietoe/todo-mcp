@@ -28,10 +28,10 @@ This document outlines the steps to implement a Go-based MCP server for a todo l
 
 ## 5. Server Initialization
 - [x] In the `Initialize` method, provide the server's metadata:
--   - [ ] Protocol version.
--   - [ ] Server capabilities (tools).
--   - [ ] Server information (name, version, etc.).
--   - [ ] Instructions for using the todo tools.
+- [x] Protocol version.
+- [x] Server capabilities (tools).
+- [x] Server information (name, version, etc.).
+- [x] Instructions for using the todo tools.
 
 ## 6. Main Function
 - [x] In `main.go`, create an instance of the `TodoServer`.
@@ -43,6 +43,6 @@ This document outlines the steps to implement a Go-based MCP server for a todo l
 - [x] Test the server's initialization and error handling.
 
 ## 8. Refinement
-- [ ] Add logging to the server.
-- [ ] Improve error handling and provide more informative error messages.
-- [ ] Add comments to the code where necessary.
+- [x] Add logging to the server.
+- [x] Improve error handling and provide more informative error messages.
+- [x] Add comments to the code where necessary.

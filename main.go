@@ -14,7 +14,7 @@ func main() {
     defer cancel()
 
     // Initialize TodoServer implementation.
-    ts := &TodoServer{}
+    ts := &TodoServer{logger: log.New(os.Stderr, "todo: ", log.LstdFlags)}
     // Create MCP server with instructions.
     opts := &mcp.ServerOptions{Instructions: "Use the todo_read and todo_write tools to manage your todo list."}
     server := mcp.NewServer(&mcp.Implementation{Name: "todo", Version: "1.0.0"}, opts)

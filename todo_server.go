@@ -4,6 +4,7 @@ import (
     "context"
     "log"
     "fmt"
+    "encoding/json"
 
     "sync"
 
@@ -13,11 +14,15 @@ import (
 type TodoServer struct {
     mu       sync.RWMutex
     fallback string
+    logger   *log.Logger
 }
+
 
 // Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
 func (s *TodoServer) Initialize(ctx context.Context, req *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
     // Provide basic server info and capabilities.
+    // Log server initialization
+    s.logger.Printf("Server initialized with protocol version %s", "2025-06-18")
     return &mcp.InitializeResult{
         ProtocolVersion: "2025-06-18",
         ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
@@ -43,25 +48,18 @@ func (s *TodoServer) ListTools(ctx context.Context, req *mcp.ListToolsRequest) (
 func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
     switch req.Params.Name {
     case "todo_read":
-        log.Printf("todo_read called")
+        s.logger.Printf("todo_read called")
         res, _, err := s.handleRead(ctx, req, nil)
         return res, err
     case "todo_write":
         var args struct{ Content string `json:"content"` }
-        // extract content argument from map
-        argsMap, ok := req.Params.Arguments.(map[string]any)
-        if !ok {
-            return nil, fmt.Errorf("arguments not a map")
+        // extract content argument from JSON
+        if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+            return nil, fmt.Errorf("failed to parse arguments: %w", err)
         }
-        v, ok := argsMap["content"]
-        if !ok {
-            return nil, fmt.Errorf("missing content argument")
-        }
-        sContent, ok := v.(string)
-        if !ok {
-            return nil, fmt.Errorf("content argument is not a string")
-        }
-        args.Content = sContent
+        // call write handler
+        res, _, err := s.handleWrite(ctx, req, args)
+        return res, err
 
     default:
         return nil, fmt.Errorf("unknown tool %s", req.Params.Name)
@@ -79,6 +77,7 @@ func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest, _
 
 // handleWrite writes the provided todo content.
 func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, args struct{ Content string `json:"content"` }) (*mcp.CallToolResult, any, error) {
+    s.logger.Printf("todo_write called with %d chars", len(args.Content))
     s.mu.Lock()
     s.fallback = args.Content
     s.mu.Unlock()
