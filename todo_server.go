@@ -58,6 +58,7 @@ Template:
 
 // ListTools returns the list of tools supported by the server.
 func (s *TodoServer) ListTools(ctx context.Context, req *mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
+    s.logger.Printf("ListTools called")
     tools := getTools()
     // Convert []mcp.Tool to []*mcp.Tool
     ptrs := make([]*mcp.Tool, len(tools))
@@ -72,6 +73,7 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
     switch req.Params.Name {
     case "todo_read":
         s.logger.Printf("todo_read called")
+    
         res, err := s.handleRead(ctx, req)
         return res, err
     case "todo_write":
@@ -102,9 +104,16 @@ func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest) (
 
 // handleWrite writes the provided todo content.
 func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, args struct{ Content string `json:"content"` }) (*mcp.CallToolResult, error) {
+    // Validate request
+    if req == nil {
+        return nil, fmt.Errorf("nil request")
+    }
     s.logger.Printf("todo_write called with %d chars", len(args.Content))
     if len(args.Content) > maxTodoContentSize {
         return nil, fmt.Errorf("content size exceeds limit of %d bytes", maxTodoContentSize)
+    }
+    if len(args.Content) == 0 {
+        return nil, fmt.Errorf("content is empty")
     }
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -119,6 +128,7 @@ func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, 
     msg := fmt.Sprintf("Updated (%d chars)", len(args.Content))
     return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: msg}}}, nil
 }
+
 
 // getTools returns the tool definitions for the server.
 func getTools() []mcp.Tool {
