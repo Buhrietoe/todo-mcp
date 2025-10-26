@@ -4,6 +4,8 @@ import (
     "context"
     "io"
     "log"
+    "encoding/json"
+    "fmt"
     "testing"
 
     "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -34,7 +36,26 @@ func TestEndToEnd(t *testing.T) {
     ctx := context.Background()
     clientTransport, serverTransport := mcp.NewInMemoryTransports()
     todo := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
-    server := mcp.NewServer(todo, &mcp.ServerOptions{})
+    impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
+    server := mcp.NewServer(impl, &mcp.ServerOptions{})
+    // Register tools
+    for _, tool := range getTools() {
+        t := tool // copy to avoid range variable reuse
+        switch t.Name {
+        case "todo_read":
+            server.AddTool(&t, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+                return todo.handleRead(ctx, req)
+            })
+        case "todo_write":
+            server.AddTool(&t, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+                var args struct{ Content string `json:"content"` }
+                if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+                    return nil, fmt.Errorf("failed to parse arguments: %w", err)
+                }
+                return todo.handleWrite(ctx, req, args)
+            })
+        }
+    }
     // No need to add tools manually; server uses CallTool implementation
     serverSession, err := server.Connect(ctx, serverTransport, nil)
     if err != nil {
