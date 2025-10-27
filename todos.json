@@ -1,3 +1,0 @@
-{
-  "default": "- [ ] Write unit tests for todo_server\n- [ ] Add integration test for JSON persistence\n- [ ] Refactor error handling in main.go\n- [ ] End2End"
-}
