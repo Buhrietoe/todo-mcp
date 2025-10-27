@@ -27,6 +27,17 @@ All previously identified audit findings have been addressed:
 go install -v github.com/Buhrietoe/todo-mcp@latest
 ```
 
+Example MCP config:
+
+```json
+"todo": {
+    "type": "stdio",
+    "command": "todo-mcp"
+}
+```
+
+```
+```
 Or use the provided Makefile shortcuts:
 
 ```sh
