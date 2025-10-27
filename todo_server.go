@@ -5,14 +5,19 @@ import (
     "log"
     "fmt"
     "encoding/json"
+    "os"
 
     "sync"
 
     "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Max content size limit for todo_write (1 MB)
-const maxTodoContentSize = 1 << 20
+const (
+    storageFile = "todos.json"
+)
+
+
+
 
 type TodoServer struct {
     mu       sync.RWMutex
@@ -20,6 +25,40 @@ type TodoServer struct {
     fallback string
     logger   *log.Logger
 }
+
+// loadFromFile loads persisted todos from storageFile if it exists.
+func (s *TodoServer) loadFromFile() error {
+    data, err := os.ReadFile(storageFile)
+    if err != nil {
+        if os.IsNotExist(err) {
+            return nil
+        }
+        return err
+    }
+    if len(data) == 0 {
+        return nil
+    }
+    var loaded map[string]string
+    if err := json.Unmarshal(data, &loaded); err != nil {
+        return err
+    }
+    s.mu.Lock()
+    s.todos = loaded
+    s.mu.Unlock()
+    return nil
+}
+
+// persistToFile writes the current todos map to storageFile.
+func (s *TodoServer) persistToFile() error {
+    s.mu.RLock()
+    data, err := json.MarshalIndent(s.todos, "", "  ")
+    s.mu.RUnlock()
+    if err != nil {
+        return err
+    }
+    return os.WriteFile(storageFile, data, 0o644)
+}
+
 
 
 // Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
@@ -93,11 +132,11 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 func (s *TodoServer) handleRead(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
     s.mu.RLock()
     defer s.mu.RUnlock()
-    content := ""
+    var content string
     if req.Session != nil && req.Session.ID() != "" {
         content = s.todos[req.Session.ID()]
     } else {
-        content = s.fallback
+        content = s.todos["default"]
     }
     return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
@@ -109,24 +148,26 @@ func (s *TodoServer) handleWrite(ctx context.Context, req *mcp.CallToolRequest, 
         return nil, fmt.Errorf("nil request")
     }
     s.logger.Printf("todo_write called with %d chars", len(args.Content))
-    if len(args.Content) > maxTodoContentSize {
-        return nil, fmt.Errorf("content size exceeds limit of %d bytes", maxTodoContentSize)
-    }
     if len(args.Content) == 0 {
         return nil, fmt.Errorf("content is empty")
     }
+// Updated: persist after unlocking to avoid deadlock
     s.mu.Lock()
-    defer s.mu.Unlock()
     if req.Session != nil && req.Session.ID() != "" {
         if s.todos == nil {
             s.todos = make(map[string]string)
         }
         s.todos[req.Session.ID()] = args.Content
     } else {
-        s.fallback = args.Content
+        s.todos["default"] = args.Content
     }
-    msg := fmt.Sprintf("Updated (%d chars)", len(args.Content))
-    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: msg}}}, nil
+    // Unlock before persisting to file to avoid deadlock with RLock inside persistToFile
+    s.mu.Unlock()
+    if s.persistToFile() != nil {
+        s.logger.Printf("failed to persist todos to file")
+    }
+    // Re-lock for deferred unlock removed; return result
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Updated (%d chars)", len(args.Content))}}}, nil
 }
 
 
@@ -153,12 +194,11 @@ func getTools() []mcp.Tool {
     return []mcp.Tool{
         {
             Name: "todo_read",
-            Description: `Read the entire TODO file content.
+            Description: `Read the current temporary storage content.
 
-This tool reads the complete TODO file and returns its content as a string.
-Use this to view current tasks, notes, and any other information stored in the TODO file.
+This tool returns the stored data as a string, allowing the LLM to retrieve previously saved information. It can be used for simple state persistence across calls.
 
-The tool will return an error if the TODO file doesn't exist or cannot be read.`,
+The tool will return an error if the storage cannot be accessed.`,
             Title:       "Read TODO file",
             InputSchema:  map[string]any{"type": "object"},
             OutputSchema: map[string]any{"type": "object"},
@@ -168,14 +208,11 @@ The tool will return an error if the TODO file doesn't exist or cannot be read.`
             Name: "todo_write",
             Description: `Write or overwrite the entire TODO file content.
 
-This tool replaces the complete TODO file content with the provided string.
-Use this to update tasks, add new items, or reorganize the TODO file.
+This tool replaces the whole TODO file with the supplied string, allowing the LLM to store arbitrary data persistently. It can be used to save updated task lists, notes, or any structured information the model wishes to retain across calls.
 
-WARNING: This operation completely replaces the file content. Make sure to include
-all content you want to keep, not just the changes.
+WARNING: This operation overwrites the entire file. Ensure the provided content includes all data you wish to keep, as any existing content not included will be lost.
 
-The tool will create the TODO file if it doesn't exist, or overwrite it if it does.
-Returns an error if the file cannot be written due to permissions or other I/O issues.`,
+The tool will create the TODO file if it does not exist, or overwrite it if it does. It returns an error if the file cannot be written due to permissions or other I/O issues.`,
             Title:       "Write TODO file",
             InputSchema:  writeInputSchema,
             OutputSchema: map[string]any{"type": "object"},

@@ -16,6 +16,10 @@ func main() {
         todos:    make(map[string]string),
         fallback: "No todos found.",
     }
+    // Load persisted todos from disk if available
+    if err := todo.loadFromFile(); err != nil {
+        todo.logger.Printf("failed to load persisted todos: %v", err)
+    }
     impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
     mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: "Use the todo_read and todo_write tools to manage your todo list."})
     // Register tools
