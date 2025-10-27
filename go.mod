@@ -1,4 +1,4 @@
-module todo-mcp
+module github.com/Buhrietoe/todo-mcp
 
 go 1.25
 
