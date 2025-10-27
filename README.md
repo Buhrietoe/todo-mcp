@@ -36,8 +36,6 @@ Example MCP config:
 }
 ```
 
-```
-```
 Or use the provided Makefile shortcuts:
 
 ```sh
