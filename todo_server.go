@@ -65,7 +65,7 @@ func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (
 		ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
 		Instructions: `Task Management
 
-Use todo_read and todo_write for tasks with 2+ steps, multiple files/components, or uncertain scope.
+Use todo_read and todo_write for tasks with 2+ steps, multiple files/components, notes, or uncertain scope.
 
 Workflow:
 - Start: read → write checklist
@@ -125,24 +125,24 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 
 // handleRead reads the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    var args struct {
-        SessionID string `json:"session_id"`
-    }
-    if req.Params != nil && len(req.Params.Arguments) > 0 {
-        _ = json.Unmarshal(req.Params.Arguments, &args)
-    }
-    var key string
-    if args.SessionID != "" {
-        key = args.SessionID
-    } else if req.Session != nil && req.Session.ID() != "" {
-        key = req.Session.ID()
-    } else {
-        key = "default"
-    }
-    content := s.todos[key]
-    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var args struct {
+		SessionID string `json:"session_id"`
+	}
+	if req.Params != nil && len(req.Params.Arguments) > 0 {
+		_ = json.Unmarshal(req.Params.Arguments, &args)
+	}
+	var key string
+	if args.SessionID != "" {
+		key = args.SessionID
+	} else if req.Session != nil && req.Session.ID() != "" {
+		key = req.Session.ID()
+	} else {
+		key = "default"
+	}
+	content := s.todos[key]
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
 // handleWrite writes the provided todo content.
