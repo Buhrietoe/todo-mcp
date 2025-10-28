@@ -125,15 +125,24 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 
 // handleRead reads the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var content string
-	if req.Session != nil && req.Session.ID() != "" {
-		content = s.todos[req.Session.ID()]
-	} else {
-		content = s.todos["default"]
-	}
-	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    var args struct {
+        SessionID string `json:"session_id"`
+    }
+    if req.Params != nil && len(req.Params.Arguments) > 0 {
+        _ = json.Unmarshal(req.Params.Arguments, &args)
+    }
+    var key string
+    if args.SessionID != "" {
+        key = args.SessionID
+    } else if req.Session != nil && req.Session.ID() != "" {
+        key = req.Session.ID()
+    } else {
+        key = "default"
+    }
+    content := s.todos[key]
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
 // handleWrite writes the provided todo content.
@@ -146,7 +155,20 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 	}
 	s.logger.Printf("todo_write called with %d chars", len(args.Content))
 	if len(args.Content) == 0 {
-		return nil, fmt.Errorf("content is empty")
+		// Clear todo entry for session or default
+		s.mu.Lock()
+		if req.Session != nil && req.Session.ID() != "" {
+			delete(s.todos, req.Session.ID())
+		} else {
+			delete(s.todos, "default")
+		}
+		s.mu.Unlock()
+		// Truncate storage file to clear persisted data
+		if err := os.WriteFile(storageFile, []byte{}, 0o644); err != nil {
+			s.logger.Printf("failed to clear storage file: %v", err)
+			return nil, fmt.Errorf("failed to clear storage: %w", err)
+		}
+		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Cleared todo list"}}}, nil
 	}
 	// Updated: persist after unlocking to avoid deadlock
 	s.mu.Lock()

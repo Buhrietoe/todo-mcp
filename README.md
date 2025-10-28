@@ -58,6 +58,20 @@ Todos are stored in `todos.json` in the working directory. The server loads this
 - **todo_read** – read‑only, idempotent. Returns the stored string.
 - **todo_write** – destructive, non‑idempotent. Requires a `content` field (string) and overwrites the stored value.
 
+- **Session support** – The server namespaces todo entries per client session. The client library automatically includes a unique session ID in each request (`req.Session.ID()`). If you supply a custom session ID, the server will store and retrieve todos separately for each session. Omit the session ID to use the shared "default" entry.
+
+**Example prompt**
+
+You are tracking tasks for this session. Add the following items to your todo list:
+
+- [ ] Buy milk
+- [ ] Call Bob
+
+Use the `todo_write` tool to store them. The session ID is `session-abc123`.
+
+
+
+
 Both tools are registered automatically in `main.go` via `getTools()`.
 
 ## License
