@@ -13,9 +13,9 @@ import (
 func main() {
 	todo := &TodoServer{
 		logger:   log.New(os.Stderr, "", 0),
-		todos:    make(map[string]string),
 		fallback: "No todos found.",
 	}
+
 	// Load persisted todos from disk if available
 	if err := todo.loadFromFile(); err != nil {
 		todo.logger.Printf("failed to load persisted todos: %v", err)

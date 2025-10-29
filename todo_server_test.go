@@ -12,7 +12,7 @@ import (
 )
 
 func TestHandleReadWrite(t *testing.T) {
-    s := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
+    s := &TodoServer{logger: log.New(io.Discard, "", 0), fallback: "No todos found."}
     ctx := context.Background()
     req := &mcp.CallToolRequest{}
     // Write
@@ -35,7 +35,7 @@ func TestHandleReadWrite(t *testing.T) {
 func TestEndToEnd(t *testing.T) {
     ctx := context.Background()
     clientTransport, serverTransport := mcp.NewInMemoryTransports()
-    todo := &TodoServer{logger: log.New(io.Discard, "", 0), todos: make(map[string]string)}
+    todo := &TodoServer{logger: log.New(io.Discard, "", 0), fallback: "No todos found."}
     impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
     server := mcp.NewServer(impl, &mcp.ServerOptions{})
     // Register tools

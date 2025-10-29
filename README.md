@@ -5,8 +5,8 @@ A minimal Go server implementing Model Context Protocol (MCP) tools for persiste
 ## Overview
 
 The server provides two MCP tools:
-- `todo_read` – returns the current TODO content for a session (or a default entry).
-- `todo_write` – overwrites the TODO content for a session (or the default entry) and persists it to `todos.json`.
+- `todo_read` – returns the current TODO content.
+- `todo_write` – overwrites the TODO content and persists it to `todos.txt`.
 
 It uses `github.com/modelcontextprotocol/go-sdk/mcp` to expose these tools over STDIO, making it easy to integrate with any MCP‑compatible client.
 
@@ -51,14 +51,14 @@ go test ./...
 
 ## Persistence
 
-Todos are stored in `todos.json` in the working directory. The server loads this file on start (if present) and writes updates after each `todo_write` call.
+Todos are stored in `todos.txt` in the working directory. The server loads this file on start (if present) and writes updates after each `todo_write` call.
 
 ## MCP Tool Definitions
 
 - **todo_read** – read‑only, idempotent. Returns the stored string.
 - **todo_write** – destructive, non‑idempotent. Requires a `content` field (string) and overwrites the stored value.
 
-- **Session support** – The server namespaces todo entries per client session. The client library automatically includes a unique session ID in each request (`req.Session.ID()`). If you supply a custom session ID, the server will store and retrieve todos separately for each session. Omit the session ID to use the shared "default" entry.
+
 
 **Example prompt**
 
