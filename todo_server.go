@@ -15,6 +15,7 @@ const (
 	storageFile = "todos.txt"
 )
 
+// TodoServer implements the mcp.Server interface and provides todo management functionality.
 type TodoServer struct {
 	mu       sync.RWMutex
 	content  string
@@ -22,7 +23,7 @@ type TodoServer struct {
 	logger   *log.Logger
 }
 
-	// loadFromFile loads persisted todos from storageFile if it exists.
+// loadFromFile loads persisted todos from storageFile if it exists.
 func (s *TodoServer) loadFromFile() error {
 	data, err := os.ReadFile(storageFile)
 	if err != nil {
@@ -34,14 +35,14 @@ func (s *TodoServer) loadFromFile() error {
 	if len(data) == 0 {
 		return nil
 	}
-	
+
 	s.mu.Lock()
 	s.content = string(data)
 	s.mu.Unlock()
 	return nil
 }
 
-	// persistToFile writes the default todo content to storageFile.
+// persistToFile writes the default todo content to storageFile.
 func (s *TodoServer) persistToFile() error {
 	s.mu.RLock()
 	content := s.content
@@ -49,6 +50,7 @@ func (s *TodoServer) persistToFile() error {
 	return os.WriteFile(storageFile, []byte(content), 0o644)
 }
 
+// Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
 // Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
 func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	// Provide basic server info and capabilities.
@@ -84,6 +86,7 @@ Template:
 }
 
 // ListTools returns the list of tools supported by the server.
+// ListTools returns the list of tools supported by the server.
 func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
 	s.logger.Printf("ListTools called")
 	tools := getTools()
@@ -96,6 +99,7 @@ func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*m
 }
 
 // CallTool dispatches tool calls to the appropriate handler.
+// CallTool dispatches a tool call to the appropriate handler.
 func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	switch req.Params.Name {
 	case "todo_read":
@@ -118,6 +122,7 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 }
 
 // handleRead reads the current todo content.
+// handleRead returns the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -126,6 +131,7 @@ func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp
 }
 
 // handleWrite writes the provided todo content.
+// handleWrite updates the todo content and persists it.
 func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, args struct {
 	Content string `json:"content"`
 }) (*mcp.CallToolResult, error) {
@@ -155,6 +161,7 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 }
 
 // getTools returns the tool definitions for the server.
+// getTools constructs and returns the tool definitions for the server.
 func getTools() []mcp.Tool {
 	// Define tool annotations and schemas
 	openWorldHint := false
