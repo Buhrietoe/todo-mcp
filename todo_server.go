@@ -61,16 +61,18 @@ func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (
 		ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
 		Instructions: `Task Management
 
-Use todo_read and todo_write for tasks with 2+ steps, multiple files/components, notes, or uncertain scope.
+Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list, then use todo_write to save an updated list. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
 
 Workflow:
-- Start: read → write checklist
-- During: read → update progress
-- End: verify all complete
+- Begin: read current list
+- Update: modify list as needed
+- Finish: write back the revised list and verify completion
 
-Warning: todo_write overwrites entirely; always todo_read first (skipping is an error)
+Important: todo_write replaces the entire file. Always read first; writing without reading may lose data.
 
-Keep items short, specific, action-oriented. Not using the todo tools for complex tasks is an error.
+Guidelines:
+- Keep entries concise and actionable.
+- Do not skip the tools for complex tasks.
 
 Template:
 - [ ] Implement feature X
