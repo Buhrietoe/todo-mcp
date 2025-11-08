@@ -21,7 +21,28 @@ func main() {
 		todo.logger.Printf("failed to load persisted todos: %v", err)
 	}
 	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
-	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: "Use the todo_read and todo_write tools to manage your todo list, notes, or other temporary storage."})
+	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: `Task Management
+
+Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list, then use todo_write to save an updated list. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
+
+Workflow:
+- Begin: read current list
+- Update: modify list as needed
+- Finish: write back the revised list and verify completion
+
+Important: todo_write replaces the entire file. Always read first; writing without reading may lose data.
+
+Guidelines:
+- Keep entries concise and actionable.
+- Do not skip the tools for complex tasks.
+
+Template:
+- [ ] Implement feature X
+  - [ ] Update API
+  - [ ] Write tests
+  - [ ] Run tests
+  - [ ] Run lint
+- [ ] Blocked: waiting on credentials`})
 	// Register tools
 	for _, tool := range getTools() {
 		t := tool // copy to avoid range variable reuse
