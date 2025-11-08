@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	storageFile = "todos.txt"
+	storageFile = "TODO.md"
 )
 
 // TodoServer implements the mcp.Server interface and provides todo management functionality.
@@ -186,7 +186,7 @@ func getTools() []mcp.Tool {
 	return []mcp.Tool{
 		{
 			Name: "todo_read",
-			Description: `Read the current temporary storage content.
+			Description: `Read the current temporary storage content (in markdown format).
 
 This tool returns the stored data as a string, allowing the LLM to retrieve previously saved information. It can be used for simple state persistence across calls.
 
@@ -198,7 +198,7 @@ The tool will return an error if the storage cannot be accessed.`,
 		},
 		{
 			Name: "todo_write",
-			Description: `Write or overwrite the entire TODO file content.
+			Description: `Write or overwrite the entire TODO file content (in markdown format).
 
 This tool replaces the whole TODO file with the supplied string, allowing the LLM to store arbitrary data persistently. It can be used to save updated task lists, notes, or any structured information the model wishes to retain across calls.
 

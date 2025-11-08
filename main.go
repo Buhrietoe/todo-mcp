@@ -23,7 +23,7 @@ func main() {
 	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
 	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: `Task Management
 
-Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list, then use todo_write to save an updated list. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
+Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list (in markdown format), then use todo_write to save an updated list in markdown format. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
 
 Workflow:
 - Begin: read current list
