@@ -37,3 +37,28 @@
 - `todos.json` – sample data.
 
 *Generated for agentic tooling.*
+
+## Additional Agent Guidance
+
+### Tool Usage
+- `todo_read`: reads the current TODO list from `TODO.md` (markdown format). Returns the content as a string via the `mcp` tool interface.
+- `todo_write`: overwrites the entire `TODO.md` file. **Must read first**; writing without reading may lose data. Passing empty content clears the file.
+- Both tools are thread‑safe; the server protects access with a `sync.RWMutex`.
+
+### Gotchas
+- `todo_write` replaces the whole file; include all desired entries in the payload.
+- Empty `content` clears the persisted list.
+- The server logs actions; check logs for errors.
+- The implementation version is `1.0.0` (see `main.go`).
+
+### Testing
+- Run all tests: `go test ./...`
+- Tests are table‑driven where applicable (see `todo_server_test.go`).
+- End‑to‑end test uses in‑memory transports; useful for verifying tool integration.
+
+### Dependencies
+- Go 1.25 (`go.mod`).
+- `github.com/modelcontextprotocol/go-sdk` provides the MCP framework.
+- Indirect dependencies: `github.com/google/jsonschema-go`, `github.com/yosida95/uritemplate/v3`.
+
+*Generated for agentic tooling.*
