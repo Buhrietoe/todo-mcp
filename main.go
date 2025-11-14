@@ -10,20 +10,9 @@ import (
 	"os/signal"
 )
 
-func main() {
-	todo := &TodoServer{
-		logger:   log.New(os.Stderr, "", 0),
-		fallback: "No todos found.",
-	}
+const serverInstructions = `Task Management
 
-	// Load persisted todos from disk if available
-	if err := todo.loadFromFile(); err != nil {
-		todo.logger.Printf("failed to load persisted todos: %v", err)
-	}
-	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
-	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: `Task Management
-
-Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list (in markdown format), then use todo_write to save an updated list in markdown format. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
+Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list (in markdown format), then todo_write to save an updated list in markdown format. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
 
 Workflow:
 - Begin: read current list
@@ -42,10 +31,32 @@ Template:
   - [ ] Write tests
   - [ ] Run tests
   - [ ] Run lint
-- [ ] Blocked: waiting on credentials`})
-	// Register tools
+- [ ] Blocked: waiting on credentials`
+
+func main() {
+	todo := &TodoServer{
+		logger:   log.New(os.Stderr, "", 0),
+		fallback: "No todos found.",
+	}
+
+	if err := todo.loadFromFile(); err != nil {
+		todo.logger.Printf("failed to load persisted todos: %v", err)
+	}
+
+	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
+
+	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: serverInstructions})
+
+	for _, p := range getTodoPrompts() {
+		mcpServer.AddPrompt(&p, func(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+			return &mcp.GetPromptResult{
+				Description: p.Description,
+				Messages: []*mcp.PromptMessage{getTodoPromptMessage()},			}, nil
+		})
+	}
+
 	for _, tool := range getTools() {
-		t := tool // copy to avoid range variable reuse
+		t := tool
 		switch t.Name {
 		case "todo_read":
 			mcpServer.AddTool(&t, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -63,7 +74,7 @@ Template:
 			})
 		}
 	}
-	// Run server over Stdio with logging
+
 	t := &mcp.LoggingTransport{Transport: &mcp.StdioTransport{}, Writer: os.Stderr}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()

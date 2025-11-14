@@ -51,7 +51,6 @@ func (s *TodoServer) persistToFile() error {
 }
 
 // Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
-// Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
 func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	// Provide basic server info and capabilities.
 	// Log server initialization
@@ -65,10 +64,15 @@ Use the todo_read and todo_write tools to manage work items. Use todo_read to re
 
 Workflow:
 - Begin: read current list
-- Update: modify list as needed
+- Select: pick the next incomplete task
+- Update: modify list as needed, removing the completed task
 - Finish: write back the revised list and verify completion
+When a task is completed, remove its entry from the list using todo_write.
 
-Important: todo_write replaces the entire file. Always read first; writing without reading may lose data.
+Important:
+- Always read first; writing without reading may lose data
+- todo_write replaces the entire file
+- NEVER view or edit the TODO.md file with other tools; only use todo_read and todo_write to update TODO.md
 
 Guidelines:
 - Keep entries concise and actionable.
@@ -88,7 +92,6 @@ Template:
 }
 
 // ListTools returns the list of tools supported by the server.
-// ListTools returns the list of tools supported by the server.
 func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
 	s.logger.Printf("ListTools called")
 	tools := getTools()
@@ -100,7 +103,6 @@ func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*m
 	return &mcp.ListToolsResult{Tools: ptrs}, nil
 }
 
-// CallTool dispatches tool calls to the appropriate handler.
 // CallTool dispatches a tool call to the appropriate handler.
 func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	switch req.Params.Name {
@@ -123,7 +125,6 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 	}
 }
 
-// handleRead reads the current todo content.
 // handleRead returns the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	s.mu.RLock()
@@ -132,7 +133,6 @@ func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
-// handleWrite writes the provided todo content.
 // handleWrite updates the todo content and persists it.
 func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, args struct {
 	Content string `json:"content"`
@@ -162,7 +162,6 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Updated (%d chars)", len(args.Content))}}}, nil
 }
 
-// getTools returns the tool definitions for the server.
 // getTools constructs and returns the tool definitions for the server.
 func getTools() []mcp.Tool {
 	// Define tool annotations and schemas
@@ -210,5 +209,34 @@ The tool will create the TODO file if it does not exist, or overwrite it if it d
 			OutputSchema: map[string]any{"type": "object"},
 			Annotations:  writeAnnotations,
 		},
+		{
+			Name:         "prompt",
+			Description:  `List available prompt names.`,
+			Title:        "List prompts",
+			InputSchema:  map[string]any{"type": "object"},
+			OutputSchema: map[string]any{"type": "object"},
+			Annotations:  readAnnotations,
+		},
 	}
+}
+
+// getTodoTaskPrompt returns the prompt definition for the todo management feature.
+func getTodoTaskPrompt() mcp.Prompt {
+	return mcp.Prompt{
+		Name:        "todo-task",
+		Title:       "todo-task",
+		Description: "Do first todo task",
+	}
+}
+
+func getTodoPromptMessage() *mcp.PromptMessage {
+	return &mcp.PromptMessage{
+		Role: "user",
+		Content: &mcp.TextContent{Text: "Read our list of todo tasks with todo_read. Implement the first item. When the first task is complete, remove it from the todo list by re-reading the list with todo_read then writing the new list with todo_write. If it is found that more tasks need to be added to the todo list, then add them."},
+	}
+}
+
+// getTodoPrompts constructs and returns the prompt definitions for the server.
+func getTodoPrompts() []mcp.Prompt {
+	return []mcp.Prompt{getTodoTaskPrompt()}
 }
