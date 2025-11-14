@@ -85,5 +85,5 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("expected '- [ ] End2End', got %q", txt)
 	}
 	clientSession.Close()
-	serverSession.Wait()
+	serverSession.Close()
 }

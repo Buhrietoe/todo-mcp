@@ -43,6 +43,12 @@ func main() {
 		todo.logger.Printf("failed to load persisted todos: %v", err)
 	}
 
+	// Initialize todo list using todo_write tool
+	if _, err := todo.handleWrite(context.Background(), nil, struct {
+		Content string `json:"content"`
+	}{Content: "- [ ] Refactor tool definitions into a separate file for clarity\n- [ ] Abstract storage layer behind an interface to enable alternative persistence mechanisms\n- [ ] Add unit tests for loadFromFile and persistToFile edge cases (e.g., permission errors)\n- [ ] Review and standardize error messages and constants usage\n- [ ] Make logger configuration (flags, output) configurable via constructor\n- [ ] Document exported functions and types with proper Go comments\n- [ ] Ensure consistent use of context in all functions\n- [ ] Add linting configuration (e.g., golangci-lint) to enforce style"}); err != nil {
+		todo.logger.Printf("failed to initialize todo list: %v", err)
+	}
 	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
 
 	mcpServer := mcp.NewServer(impl, &mcp.ServerOptions{Instructions: serverInstructions})
@@ -51,7 +57,7 @@ func main() {
 		mcpServer.AddPrompt(&p, func(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 			return &mcp.GetPromptResult{
 				Description: p.Description,
-				Messages: []*mcp.PromptMessage{getTodoPromptMessage()},			}, nil
+				Messages:    []*mcp.PromptMessage{getTodoPromptMessage()}}, nil
 		})
 	}
 

@@ -38,7 +38,7 @@ func (s *TodoServer) loadFromFile() error {
 
 	s.mu.Lock()
 	s.content = string(data)
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 	return nil
 }
 
@@ -46,8 +46,26 @@ func (s *TodoServer) loadFromFile() error {
 func (s *TodoServer) persistToFile() error {
 	s.mu.RLock()
 	content := s.content
-	s.mu.RUnlock()
-	return os.WriteFile(storageFile, []byte(content), 0o644)
+	defer s.mu.RUnlock()
+	// Open the file atomically, creating it if it does not exist
+	f, err := os.OpenFile(storageFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			// File exists, open for truncation
+			f, err = os.OpenFile(storageFile, os.O_WRONLY|os.O_TRUNC, 0o644)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	defer f.Close()
+	// Write content
+	if _, err := f.WriteString(content); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Initialize implements the mcp.Server interface's Initialize method, providing server metadata.
@@ -156,7 +174,6 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 	s.content = args.Content
 	s.mu.Unlock()
 	if err := s.persistToFile(); err != nil {
-		s.logger.Printf("failed to persist todos to file: %v", err)
 		return nil, fmt.Errorf("failed to persist todos: %w", err)
 	}
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Updated (%d chars)", len(args.Content))}}}, nil
@@ -164,79 +181,5 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 
 // getTools constructs and returns the tool definitions for the server.
 func getTools() []mcp.Tool {
-	// Define tool annotations and schemas
-	openWorldHint := false
-	readAnnotations := &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: &openWorldHint}
-	writeDestructive := true
-	writeAnnotations := &mcp.ToolAnnotations{DestructiveHint: &writeDestructive, IdempotentHint: false, OpenWorldHint: &openWorldHint}
-
-	// Input schema for write tool
-	writeInputSchema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"content": map[string]any{
-				"type":        "string",
-				"description": "The TODO list content to save",
-			},
-		},
-		"required": []string{"content"},
-	}
-
-	return []mcp.Tool{
-		{
-			Name: "todo_read",
-			Description: `Read the current temporary storage content (in markdown format).
-
-This tool returns the stored data as a string, allowing the LLM to retrieve previously saved information. It can be used for simple state persistence across calls.
-
-The tool will return an error if the storage cannot be accessed.`,
-			Title:        "Read TODO file",
-			InputSchema:  map[string]any{"type": "object"},
-			OutputSchema: map[string]any{"type": "object"},
-			Annotations:  readAnnotations,
-		},
-		{
-			Name: "todo_write",
-			Description: `Write or overwrite the entire TODO file content (in markdown format).
-
-This tool replaces the whole TODO file with the supplied string, allowing the LLM to store arbitrary data persistently. It can be used to save updated task lists, notes, or any structured information the model wishes to retain across calls.
-
-WARNING: This operation overwrites the entire file. Ensure the provided content includes all data you wish to keep, as any existing content not included will be lost.
-
-The tool will create the TODO file if it does not exist, or overwrite it if it does. It returns an error if the file cannot be written due to permissions or other I/O issues.`,
-			Title:        "Write TODO file",
-			InputSchema:  writeInputSchema,
-			OutputSchema: map[string]any{"type": "object"},
-			Annotations:  writeAnnotations,
-		},
-		{
-			Name:         "prompt",
-			Description:  `List available prompt names.`,
-			Title:        "List prompts",
-			InputSchema:  map[string]any{"type": "object"},
-			OutputSchema: map[string]any{"type": "object"},
-			Annotations:  readAnnotations,
-		},
-	}
-}
-
-// getTodoTaskPrompt returns the prompt definition for the todo management feature.
-func getTodoTaskPrompt() mcp.Prompt {
-	return mcp.Prompt{
-		Name:        "todo-task",
-		Title:       "todo-task",
-		Description: "Do first todo task",
-	}
-}
-
-func getTodoPromptMessage() *mcp.PromptMessage {
-	return &mcp.PromptMessage{
-		Role: "user",
-		Content: &mcp.TextContent{Text: "Read our list of todo tasks with todo_read. Implement the first item. When the first task is complete, remove it from the todo list by re-reading the list with todo_read then writing the new list with todo_write. If it is found that more tasks need to be added to the todo list, then add them."},
-	}
-}
-
-// getTodoPrompts constructs and returns the prompt definitions for the server.
-func getTodoPrompts() []mcp.Prompt {
-	return []mcp.Prompt{getTodoTaskPrompt()}
+	return getToolDefinitions()
 }
