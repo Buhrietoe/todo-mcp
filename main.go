@@ -19,7 +19,8 @@ Workflow:
 - Update: modify list as needed
 - Finish: write back the revised list and verify completion
 
-Important: todo_write replaces the entire file. Always read first; writing without reading may lose data.
+IMPORTANT: todo_write replaces the entire file. Always read first; writing without reading may lose data.
+IMPORTANT: Always use the todo_write tool to plan and track tasks throughout the conversation.
 
 Guidelines:
 - Keep entries concise and actionable.
