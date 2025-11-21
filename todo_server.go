@@ -145,10 +145,15 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 
 // handleRead returns the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	content := s.content
-	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
+    // Reload content from storage file to ensure up-to-date view
+    if err := s.loadFromFile(); err != nil {
+        // Log error but continue with existing cached content
+        s.logger.Printf("failed to reload todo file: %v", err)
+    }
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    content := s.content
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
 // handleWrite updates the todo content and persists it.
