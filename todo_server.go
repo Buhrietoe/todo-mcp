@@ -23,6 +23,8 @@ type TodoServer struct {
 	logger   *log.Logger
 }
 
+func (s *TodoServer) logf(format string, args ...any) { s.logger.Printf(format, args...) }
+
 // loadFromFile loads persisted todos from storageFile if it exists.
 func (s *TodoServer) loadFromFile() error {
 	data, err := os.ReadFile(storageFile)
@@ -72,7 +74,7 @@ func (s *TodoServer) persistToFile() error {
 func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	// Provide basic server info and capabilities.
 	// Log server initialization
-	s.logger.Printf("Server initialized with protocol version %s", "2025-06-18")
+	s.logf("Server initialized with protocol version %s", "2025-06-18")
 	return &mcp.InitializeResult{
 		ProtocolVersion: "2025-06-18",
 		ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
@@ -111,7 +113,7 @@ Template:
 
 // ListTools returns the list of tools supported by the server.
 func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
-	s.logger.Printf("ListTools called")
+	s.logf("ListTools called")
 	tools := getTools()
 	// Convert []mcp.Tool to []*mcp.Tool
 	ptrs := make([]*mcp.Tool, len(tools))
@@ -125,7 +127,7 @@ func (s *TodoServer) ListTools(_ context.Context, req *mcp.ListToolsRequest) (*m
 func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	switch req.Params.Name {
 	case "todo_read":
-		s.logger.Printf("todo_read called")
+		s.logf("todo_read called")
 
 		res, err := s.handleRead(ctx, req)
 		return res, err
@@ -145,15 +147,15 @@ func (s *TodoServer) CallTool(ctx context.Context, req *mcp.CallToolRequest) (*m
 
 // handleRead returns the current todo content.
 func (s *TodoServer) handleRead(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-    // Reload content from storage file to ensure up-to-date view
-    if err := s.loadFromFile(); err != nil {
-        // Log error but continue with existing cached content
-        s.logger.Printf("failed to reload todo file: %v", err)
-    }
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    content := s.content
-    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
+	// Reload content from storage file to ensure up-to-date view
+	if err := s.loadFromFile(); err != nil {
+		// Log error but continue with existing cached content
+		s.logf("failed to reload todo file: %v", err)
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	content := s.content
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: content}}}, nil
 }
 
 // handleWrite updates the todo content and persists it.
@@ -164,7 +166,7 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 	if req == nil {
 		return nil, fmt.Errorf("nil request")
 	}
-	s.logger.Printf("todo_write called with %d chars", len(args.Content))
+	s.logf("todo_write called with %d chars", len(args.Content))
 	if len(args.Content) == 0 {
 		// Clear todo entry (ignore session)
 		// Truncate storage file to clear persisted data

@@ -56,9 +56,22 @@ func main() {
 
 	for _, p := range getTodoPrompts() {
 		mcpServer.AddPrompt(&p, func(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+			// Retrieve current TODO list content
+			readRes, err := todo.handleRead(context.Background(), nil)
+			if err != nil {
+				return nil, err
+			}
+			var contentText string
+			if len(readRes.Content) > 0 {
+				if txt, ok := readRes.Content[0].(*mcp.TextContent); ok {
+					contentText = txt.Text
+				}
+			}
+			baseMsg := getTodoPromptMessageWithContent(contentText)
 			return &mcp.GetPromptResult{
 				Description: p.Description,
-				Messages:    []*mcp.PromptMessage{getTodoPromptMessage()}}, nil
+				Messages:    []*mcp.PromptMessage{baseMsg},
+			}, nil
 		})
 	}
 
