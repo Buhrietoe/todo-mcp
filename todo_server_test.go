@@ -37,7 +37,7 @@ func TestHandleReadWrite(t *testing.T) {
 func TestEndToEnd(t *testing.T) {
 	ctx := context.Background()
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
-	todo := &TodoServer{logger: log.New(io.Discard, "", 0), fallback: "No todos found."}
+	todo := &TodoServer{logger: log.New(io.Discard, "", 0), fallback: "No todos found.", version: "1.0.0"}
 	impl := &mcp.Implementation{Name: "todo", Version: "0.1.0"}
 	server := mcp.NewServer(impl, &mcp.ServerOptions{})
 	// Register tools

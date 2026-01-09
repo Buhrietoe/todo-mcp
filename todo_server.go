@@ -12,14 +12,50 @@ import (
 )
 
 const (
-	storageFile = "TODO.md"
+	defaultStorageFile = "TODO.md"
 )
+
+// getStorageFile returns the storage file path from environment or default
+func getStorageFile() string {
+	if file := os.Getenv("TODO_FILE"); file != "" {
+		return file
+	}
+	return defaultStorageFile
+}
+
+// Unified server instructions for consistency across the application
+const serverInstructions = `Task Management with TODO MCP
+
+Use todo_read and todo_write tools to manage your work items efficiently. Always read first, then modify as needed, and finally write back the updated list.
+
+Workflow:
+1. Read: Use todo_read to retrieve the current TODO list
+2. Select: Choose the next incomplete task to work on
+3. Update: Modify the list as needed, removing completed tasks
+4. Write: Use todo_write to save the revised list
+
+IMPORTANT: todo_write replaces the entire file. Always read first; writing without reading may lose data.
+IMPORTANT: NEVER view or edit the TODO.md file with other tools; only use todo_read and todo_write.
+
+Guidelines:
+- Keep entries concise and actionable
+- Break complex tasks into smaller subtasks when needed
+- Remove completed tasks promptly to avoid confusion
+
+Template:
+- [ ] Implement feature X
+  - [ ] Update API
+  - [ ] Write tests
+  - [ ] Run tests
+  - [ ] Run lint
+- [ ] Blocked: waiting on credentials`
 
 // TodoServer implements the mcp.Server interface and provides todo management functionality.
 type TodoServer struct {
 	mu       sync.RWMutex
 	content  string
 	fallback string
+	version  string
 	logger   *log.Logger
 }
 
@@ -27,46 +63,38 @@ func (s *TodoServer) logf(format string, args ...any) { s.logger.Printf(format, 
 
 // loadFromFile loads persisted todos from storageFile if it exists.
 func (s *TodoServer) loadFromFile() error {
+	storageFile := getStorageFile()
 	data, err := os.ReadFile(storageFile)
 	if err != nil {
 		if os.IsNotExist(err) {
+			s.logf("Storage file %s does not exist, starting with empty content", storageFile)
 			return nil
 		}
-		return err
+		return fmt.Errorf("failed to read todo file %s: %w", storageFile, err)
 	}
 	if len(data) == 0 {
+		s.logf("Storage file %s is empty", storageFile)
 		return nil
 	}
 
 	s.mu.Lock()
 	s.content = string(data)
 	defer s.mu.Unlock()
+	s.logf("Loaded %d characters from %s", len(data), storageFile)
 	return nil
 }
 
-// persistToFile writes the default todo content to storageFile.
+// persistToFile writes the current todo content to storageFile.
 func (s *TodoServer) persistToFile() error {
 	s.mu.RLock()
 	content := s.content
-	defer s.mu.RUnlock()
-	// Open the file atomically, creating it if it does not exist
-	f, err := os.OpenFile(storageFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
-	if err != nil {
-		if os.IsExist(err) {
-			// File exists, open for truncation
-			f, err = os.OpenFile(storageFile, os.O_WRONLY|os.O_TRUNC, 0o644)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
+	s.mu.RUnlock()
+	
+	storageFile := getStorageFile()
+	if err := os.WriteFile(storageFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("failed to write todo file %s: %w", storageFile, err)
 	}
-	defer f.Close()
-	// Write content
-	if _, err := f.WriteString(content); err != nil {
-		return err
-	}
+	s.logf("Saved %d characters to %s", len(content), storageFile)
 	return nil
 }
 
@@ -78,33 +106,7 @@ func (s *TodoServer) Initialize(_ context.Context, req *mcp.InitializeRequest) (
 	return &mcp.InitializeResult{
 		ProtocolVersion: "2025-06-18",
 		ServerInfo:      &mcp.Implementation{Name: "todo", Version: "1.0.0"},
-		Instructions: `Task Management
-
-Use the todo_read and todo_write tools to manage work items. Use todo_read to retrieve the current list, then use todo_write to save an updated list. This approach supports multi-step tasks, cross-file work, notes, and ambiguous scopes.
-
-Workflow:
-- Begin: read current list
-- Select: pick the next incomplete task
-- Update: modify list as needed, removing the completed task
-- Finish: write back the revised list and verify completion
-When a task is completed, remove its entry from the list using todo_write.
-
-Important:
-- Always read first; writing without reading may lose data
-- todo_write replaces the entire file
-- NEVER view or edit the TODO.md file with other tools; only use todo_read and todo_write to update TODO.md
-
-Guidelines:
-- Keep entries concise and actionable.
-- Do not skip the tools for complex tasks.
-
-Template:
-- [ ] Implement feature X
-  - [ ] Update API
-  - [ ] Write tests
-  - [ ] Run tests
-  - [ ] Run lint
-- [ ] Blocked: waiting on credentials`,
+		Instructions:    serverInstructions,
 		Capabilities: &mcp.ServerCapabilities{
 			Tools: &mcp.ToolCapabilities{ListChanged: true},
 		},
@@ -164,16 +166,17 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 }) (*mcp.CallToolResult, error) {
 	// Validate request
 	if req == nil {
-		return nil, fmt.Errorf("nil request")
+		return nil, fmt.Errorf("invalid tool request: request cannot be nil")
 	}
-	s.logf("todo_write called with %d chars", len(args.Content))
+	s.logf("todo_write called with %d characters", len(args.Content))
 	if len(args.Content) == 0 {
 		// Clear todo entry (ignore session)
 		// Truncate storage file to clear persisted data
+		storageFile := getStorageFile()
 		if err := os.WriteFile(storageFile, []byte{}, 0o644); err != nil {
-			s.logger.Printf("failed to clear storage file: %v", err)
-			return nil, fmt.Errorf("failed to clear storage: %w", err)
+			return nil, fmt.Errorf("failed to clear todo file %s: %w", storageFile, err)
 		}
+		s.logf("Cleared todo list in %s", storageFile)
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Cleared todo list"}}}, nil
 	}
 	// Update content and persist
@@ -181,9 +184,9 @@ func (s *TodoServer) handleWrite(_ context.Context, req *mcp.CallToolRequest, ar
 	s.content = args.Content
 	s.mu.Unlock()
 	if err := s.persistToFile(); err != nil {
-		return nil, fmt.Errorf("failed to persist todos: %w", err)
+		return nil, fmt.Errorf("failed to persist todo updates: %w", err)
 	}
-	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Updated (%d chars)", len(args.Content))}}}, nil
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Updated todo list (%d characters)", len(args.Content))}}}, nil
 }
 
 // getTools constructs and returns the tool definitions for the server.
